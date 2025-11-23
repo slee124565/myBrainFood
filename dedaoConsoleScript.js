@@ -171,3 +171,70 @@ function p() {
     console.warn('❌ 沒有找到任何文字包含「上一篇」的 button-module。');
   }
 };
+
+function findScrollableElement() {
+  const all = document.querySelectorAll('*');
+  for (const el of all) {
+    const style = getComputedStyle(el);
+    const canScrollY =
+      (style.overflowY === 'auto' || style.overflowY === 'scroll') &&
+      el.scrollHeight > el.clientHeight;
+
+    if (canScrollY) {
+      console.log('找到可捲動元素：', el);
+      return el;
+    }
+  }
+  console.log('沒找到內層可捲動元素，改用 window');
+  return window;
+}
+
+function d() {
+  console.log('scrow down ...');
+
+  const target = findScrollableElement;
+
+  const height =
+    target === window
+      ? window.innerHeight
+      : target.clientHeight;
+
+  if (target === window) {
+    window.scrollBy({
+      top: height,
+      left: 0,
+      behavior: 'smooth',
+    });
+  } else {
+    target.scrollBy({
+      top: height,
+      left: 0,
+      behavior: 'smooth',
+    });
+  }
+}
+
+
+// 隨機等待 4 / 5 / 6 秒
+function sleepRandom456() {
+  const choices = [4, 5, 6];
+  const sec = choices[Math.floor(Math.random() * choices.length)];
+  console.log(`等待 ${sec} 秒後再執行 s() ...`);
+  return new Promise((resolve) => setTimeout(resolve, sec * 1000));
+}
+
+// 依題意：for i = 1 to 20
+//   p();
+//   random(4,5,6) 秒
+//   s();
+async function b(times = 20) {
+  for (let i = 1; i <= times; i++) {
+    console.log(`第 ${i} 次：呼叫 p()`);
+    n();
+    await sleepRandom456();
+    console.log(`第 ${i} 次：呼叫 s()`);
+    s();
+  }
+  console.log('b() 執行完畢');
+}
+
