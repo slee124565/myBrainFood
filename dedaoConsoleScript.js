@@ -229,7 +229,7 @@ function sleepRandom456() {
 //   s();
 async function b(times = 20) {
   for (let i = 1; i <= times; i++) {
-    console.log(`第 ${i} 次：呼叫 p()`);
+    console.log(`第 ${i} 次：呼叫 n()`);
     n();
     await sleepRandom456();
     console.log(`第 ${i} 次：呼叫 s()`);
