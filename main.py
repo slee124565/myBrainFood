@@ -159,8 +159,8 @@ def convert_iget_html_to_markdown(file_path):
 if __name__ == "__main__":
     # 檢查是否有傳入參數
     if len(sys.argv) < 2:
-        print("用法: python html2md.py <html檔案路徑>")
-        print("範例: python html2md.py \"19 吸引子.html\"")
+        print("用法: python main.py <html檔案路徑>")
+        print("範例: python main.py \"19 吸引子.html\"")
     else:
         input_file = sys.argv[1]
         convert_iget_html_to_markdown(input_file)
