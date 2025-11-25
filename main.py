@@ -65,6 +65,10 @@ def convert_iget_html_to_markdown(file_path):
     title_div = soup.find('div', class_='article-title')
     if title_div:
         md_lines.append(f"# {title_div.get_text(strip=True)}\n")
+    else:  # Fallback for the new HTML structure
+        title_tag = soup.find('title')
+        if title_tag:
+            md_lines.append(f"# {title_tag.get_text(strip=True)}\n")
 
     # 作者與時間
     info_div = soup.find('div', class_='article-info')
@@ -76,6 +80,10 @@ def convert_iget_html_to_markdown(file_path):
         if time_info: infos.append(f" **時間** : {time_info.get_text(strip=True)}")
         if infos:
             md_lines.append(f"> {' | '.join(infos)}\n")
+    else:  # Fallback for the new HTML structure
+        time_info = soup.find('div', class_='article-publish-time')
+        if time_info:
+            md_lines.append(f"> **時間** : {time_info.get_text(strip=True).replace('首次发布:', '').strip()}\n")
 
     # 封面圖
     cover_div = soup.find('div', class_='article-cover-wrap')
@@ -95,9 +103,9 @@ def convert_iget_html_to_markdown(file_path):
                 continue
 
             # 排除雜訊
-            if child.name in ['script', 'style']:
+            if child.name in ['script', 'style', 'svg']:
                 continue
-            if 'em-menu' in child.get('class', []):  # 排除選單彈窗
+            if 'em-menu' in child.get('class', []) or (child.get('style') and 'display: none' in child.get('style')):  # 排除選單彈窗和隱藏元素
                 continue
 
             # A. 音頻佔位符
@@ -107,9 +115,17 @@ def convert_iget_html_to_markdown(file_path):
                 md_lines.append(f"> 🎧  **{title_txt}** (請回原網頁收聽)\n")
                 continue
 
-            # B. 小標題 (H2)
+            # B. 小標題 (H2 and article-header)
             if child.name == 'h2':
                 md_lines.append(f"\n## {child.get_text(strip=True)}\n")
+                continue
+
+            if child.name == 'div' and 'article-header' in child.get('class', []):
+                text = child.get_text(strip=True)
+                if 'header-1' in child.get('class', []):
+                    md_lines.append(f"\n## {text}\n")
+                elif 'header-2' in child.get('class', []):
+                    md_lines.append(f"\n### {text}\n")
                 continue
 
             # C. 段落 (P)
@@ -120,14 +136,29 @@ def convert_iget_html_to_markdown(file_path):
                     md_lines.append(f"{p_text}\n")
                 continue
 
-            # D. 圖片 (Figure / Img)
+            # D. 引用 (Blockquote)
+            if child.name == 'div' and 'original-block-quote' in child.get('class', []):
+                quote = child.find('blockquote')
+                if quote:
+                    # 先把 <br> 換成換行符號
+                    for br in quote.find_all('br'):
+                        br.replace_with('\n')
+                    quote_text = quote.get_text()
+                    # Add > to each line
+                    indented_quote = "\n".join([f"> {line}" for line in quote_text.split('\n')])
+                    md_lines.append(f"\n{indented_quote}\n")
+                continue
+
+            # E. 圖片 (Figure / Img)
             if child.name == 'figure' or (child.name == 'img' and 'big-image' in child.get('class', [])):
                 img_tag = child.find('img') if child.name == 'figure' else child
                 if img_tag and img_tag.get('src'):
-                    md_lines.append(f"\n![插圖]({img_tag['src']})\n")
+                    caption_tag = child.find('figcaption')
+                    caption = caption_tag.get_text(strip=True) if caption_tag else '插圖'
+                    md_lines.append(f"\n![{caption}]({img_tag['src']})\n")
                 continue
 
-            # E. 劃重點 (Elite Module)
+            # F. 劃重點 (Elite Module)
             if 'elite-module' in child.get('class', []):
                 md_lines.append("\n---\n### 📝 劃重點\n")
                 content_div = child.find('div', class_='content')
@@ -140,10 +171,21 @@ def convert_iget_html_to_markdown(file_path):
                     raw_text = content_div.get_text()
                     lines = [line.strip() for line in raw_text.split('\n') if line.strip()]
 
+
                     for line in lines:
                         # 處理列表項目
                         md_lines.append(f"- {line}")
                 md_lines.append("\n---\n")
+                continue
+
+            # G. 列表 (ul)
+            if child.name == 'ul':
+                for li in child.find_all('li'):
+                    li_text = process_node(li)
+                    if li_text.strip():
+                        md_lines.append(f"- {li_text.strip()}")
+                md_lines.append("\n")  # Add a newline after the list
+                continue
 
     # --- 3. 輸出檔案 ---
     output_filename = os.path.splitext(file_path)[0] + ".md"
